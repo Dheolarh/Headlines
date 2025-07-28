@@ -1,0 +1,19 @@
+[
+    {
+        "ticker": "AAPL",
+        "score": 9.5,
+        "macro_score": 8.2,
+        "direction": "↑",
+        "strategy": "Zen",
+        "TP1": 195.5,
+        "TP2": 202.0,
+        "stop_loss": 185.0,
+        "entry_zone": "190.00 - 192.00",
+        "leverage": "1.5x",
+        "risk_level": "Moderate",
+        "confirmation_type": "Post-Market",
+        "signal_type": "Boost",
+        "ZS10_score": 95,
+        "comment": "Strong volume breakout with macro confirmation"
+    }
+]

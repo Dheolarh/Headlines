@@ -1,0 +1,18 @@
+[
+  {
+    "ticker": "EUR/JPY",
+    "score": 9.8,
+    "macro_score": 10.0,
+    "direction": "↑",
+    "strategy": "Zen",
+    "TP1": 163.5,
+    "TP2": 165.0,
+    "stop_loss": 161.0,
+    "entry_zone": "162.00 - 163.00",
+    "sentiment": "9.1/10",
+    "confirmation_type": "Post-Market",
+    "signal_type": "Boost",
+    "ZS10_score": 92,
+    "comment": "Strong uptrend with macro confirmation"
+  }
+]

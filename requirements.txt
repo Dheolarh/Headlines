@@ -1,0 +1,6 @@
+google-generativeai
+beautifulsoup4
+requests
+gspread
+oauth2client
+openai

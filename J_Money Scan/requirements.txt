@@ -1,0 +1,9 @@
+gspread
+oauth2client
+PyYAML
+python-telegram-bot
+pandas
+requests
+dotenv
+gspread
+pytz
