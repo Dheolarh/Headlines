@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 
 def fetch_headlines(ticker_map):
-    ticker_order = ["TSLA", "OKLO", "AAPL", "URBN"]
+    ticker_order = list(ticker_map.keys())
     headlines_by_ticker = {ticker: [] for ticker in ticker_order}
     sources = {
         "Investing": "https://www.investing.com/news/",
@@ -10,7 +10,12 @@ def fetch_headlines(ticker_map):
         "Finviz": "https://finviz.com/news.ashx",
         "GlobeNewswire": "https://www.globenewswire.com/",
         "MarketWatch": "https://www.marketwatch.com/latest-news",
-        "Reuters": "https://www.reuters.com/finance/markets",
+        "Reuters": "https://www.reuters.com/markets",
+        "CNBC": "https://www.cnbc.com/world/?region=world",
+        "Bloomberg": "https://www.bloomberg.com/markets",
+        "FXStreet": "https://www.fxstreet.com/news",
+        "Business Insider": "https://markets.businessinsider.com/stocks",
+        "Financial Times": "https://www.ft.com/markets"
     }
     import datetime
     seen_headlines = set()
