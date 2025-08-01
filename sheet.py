@@ -10,7 +10,12 @@ def upload_to_sheet(data):
 
         sheet = client.open(SHEET_NAME).sheet1
         sheet.clear()
-        sheet.append_row(["Ticker", "Headline", "Source", "Date", "Summary", "News Decision", "Catalyst Type", "Confidence Score", "Visual Flag", "JMoney Confirmed"])
+        # Added "Strategy", "Signal ID", and "Watch" columns
+        sheet.append_row([
+            "Ticker", "Headline", "Source", "Date", "Summary", "News Decision", "Catalyst Type",
+            "Confidence Score", "Visual Flag", "JMoney Confirmed", "Macro Score",
+            "Strategy", "Signal ID", "JMoney Note"
+        ])
         # Read all existing rows for deduplication and update
         all_rows = sheet.get_all_values()
         headers = all_rows[0] if all_rows else []
@@ -26,6 +31,7 @@ def upload_to_sheet(data):
                         date = dt.strftime("%Y-%m-%d %H:%M")
                 except Exception:
                     pass
+                # Add strategy, signal_id, and watch
                 row_data = [
                     item.get("ticker", ""),
                     item.get("headline", ""),
@@ -36,24 +42,12 @@ def upload_to_sheet(data):
                     item.get("catalyst_type", ""),
                     item.get("confidence", ""),
                     item.get("flag", ""),
-                    item.get("jmoney_confirmed", "")
+                    item.get("jmoney_confirmed", ""),
+                    item.get("macro_score", ""),
+                    item.get("strategy", ""),
+                    item.get("signal_type", ""),
+                    item.get("jmoney_note", "")
                 ]
-                key = (item.get("ticker", ""), item.get("headline", ""))
-                if key in existing:
-                    # Check if JMoney fields have changed; if so, update row
-                    row_num = existing[key]
-                    old_row = all_rows[row_num-1] if row_num-1 < len(all_rows) else []
-                    # Compare macro_score, zs10_score, strategy, signal_type, jmoney_confirmed
-                    changed = False
-                    for col, field in zip([8], ["jmoney_confirmed"]):
-                        idx = headers.index("JMoney Confirmed") if "JMoney Confirmed" in headers else -1
-                        if idx != -1 and (len(old_row) <= idx or old_row[idx] != item.get(field, "")):
-                            changed = True
-                    if changed:
-                        sheet.update(f"A{row_num}:I{row_num}", [row_data])
-                else:
-                    sheet.append_row(row_data)
-
-        print("Data uploaded to Google Sheet.")
+                sheet.append_row(row_data)
     except Exception as e:
-        print(f"Google Sheet error: {e}")
+        print(f"[Sheet Upload Error] {e}")

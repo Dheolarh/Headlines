@@ -1,0 +1,7 @@
+{
+  "recency_weight": 0.4,
+  "volume_weight": 0.2,
+  "reliability_weight": 0.2,
+  "macro_weight": 0.1,
+  "jmoney_confirm_weight": 0.1
+}

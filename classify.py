@@ -1,5 +1,17 @@
 from openai import OpenAI
 from config import OPENAI_API_KEY
+from dotenv import load_dotenv
+load_dotenv()
+import os
+import json
+
+def load_prompt():
+    prompt_path = os.path.join(os.path.dirname(__file__), "config", "prompt.json")
+    with open(prompt_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+        return data["template"]
+
+GPT_PROMPT = load_prompt()
 
 def classify_headline(headline, jmoney_context=None):
     client = OpenAI(api_key=OPENAI_API_KEY)
@@ -9,24 +21,7 @@ def classify_headline(headline, jmoney_context=None):
         context_str = "\nJMoney context for this ticker: "
         for k, v in jmoney_context.items():
             context_str += f"{k}: {v}, "
-    prompt = f"""
-Classify and filter the following news headline into one of these categories:
-- Positive Catalyst
-- Negative Catalyst
-- Neutral
-
-Headline: "{headline}"
-{context_str}
-
-Given the JMoney context, decide if this headline is a strong actionable catalyst for trading. Respond ONLY with a valid JSON object, no explanation, no markdown, no extra text. Example format:
-{{"category": "Positive Catalyst", "summary": "Short summary here.", "confidence": 8, "filter_decision": true}}
-Fields:
-- category: just one of the category labels
-- summary: a short summary (max 20 words)
-- confidence: a score from 0 to 10 for catalyst strength
-- filter_decision: true if this headline should be considered a strong actionable catalyst given the JMoney context, false otherwise
-"""
-    import json
+    prompt = GPT_PROMPT.format(headline=headline, context=context_str)
     max_attempts = 2
     for attempt in range(max_attempts):
         try:

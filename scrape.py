@@ -1,22 +1,17 @@
 import requests
 from bs4 import BeautifulSoup
+import os
+import json
 
 def fetch_headlines(ticker_map):
     ticker_order = list(ticker_map.keys())
     headlines_by_ticker = {ticker: [] for ticker in ticker_order}
-    sources = {
-        "Investing": "https://www.investing.com/news/",
-        "Yahoo": "https://finance.yahoo.com/",
-        "Finviz": "https://finviz.com/news.ashx",
-        "GlobeNewswire": "https://www.globenewswire.com/",
-        "MarketWatch": "https://www.marketwatch.com/latest-news",
-        "Reuters": "https://www.reuters.com/markets",
-        "CNBC": "https://www.cnbc.com/world/?region=world",
-        "Bloomberg": "https://www.bloomberg.com/markets",
-        "FXStreet": "https://www.fxstreet.com/news",
-        "Business Insider": "https://markets.businessinsider.com/stocks",
-        "Financial Times": "https://www.ft.com/markets"
-    }
+
+    # Load sources from config/sources.json
+    sources_path = os.path.join(os.path.dirname(__file__), "config", "sources.json")
+    with open(sources_path, "r") as f:
+        sources = json.load(f)
+
     import datetime
     seen_headlines = set()
     for name, url in sources.items():

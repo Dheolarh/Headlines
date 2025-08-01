@@ -16,6 +16,11 @@ from classify import classify_headline
 from sheet import upload_to_sheet
 from telegram_bot import send_telegram_message, handle_clear_command
 
+# Load scoring parameters from config/scoring.json
+scoring_path = os.path.join(os.path.dirname(__file__), "config", "scoring.json")
+with open(scoring_path, "r") as f:
+    SCORING_PARAMS = json.load(f)
+
 # Set GOOGLE_APPLICATION_CREDENTIALS from .env if present, else print a warning
 gsa_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 if gsa_path and os.path.exists(gsa_path):
@@ -129,8 +134,8 @@ def fetch_and_process(loop_count=None):
                     "macro_score": entry.get("macro_score", ""),
                     "sentiment": entry.get("sentiment", ""),
                     "ZS10_score": entry.get("ZS10_score", ""),
-                    "strategy": entry.get("strategy", ""),
-                    "signal_type": entry.get("signal_type", "")
+                    "strategy": entry.get("tp_strategy", ""),
+                    "signal_type": entry.get("signal_id", "")
                 }
             gpt_result = classify_headline(headline, jmoney_context)
             print("[STEP 7] GPT classification complete.")
@@ -146,52 +151,57 @@ def fetch_and_process(loop_count=None):
                 catalyst_type = "Neutral"
 
             # JMoney confirmation: confirmed if ticker is present in Confirmed tab
-            zs10_score = macro_score = strategy = signal_type = comment = sentiment_score = ""
+            zs10_score = macro_score = strategy = signal_type = comment = sentiment_score = "Not Available"
             jmoney_confirmed = ""
             jmoney_note = ""
             if ticker in jmoney_details:
                 print("[STEP 9] JMoney context found, marking as confirmed (no extra checks)...")
                 entry = jmoney_details[ticker]
-                zs10_score = entry.get("ZS10_score", "")
-                macro_score = entry.get("macro_score", "")
-                strategy = entry.get("strategy", "")
-                signal_type = entry.get("signal_type", "")
-                comment = entry.get("comment", "")
-                sentiment_score = entry.get("sentiment", "")
+                zs10_score = entry.get("ZS10_score", "Not Available")
+                macro_score = entry.get("macro_score", "Not Available")
+                strategy = entry.get("tp_strategy", "Not Available")
+                signal_type = entry.get("signal_id", "Not Available")
+                comment = entry.get("comment", "Not Available")
+                sentiment_score = entry.get("sentiment", "Not Available")
                 jmoney_confirmed = "✅ JMoney Confirmed"
                 jmoney_note = "Confirmed: Ticker present in JMoney Confirmed tab."
+            else:
+                print(f"[STEP 9] Warning: {ticker} not found in JMoney Engine sheet.")
 
-            # Adaptive logic
-            # Recency weight
-            recency_boost = 0
-            try:
-                if date:
-                    dt = datetime.datetime.fromisoformat(date.replace("Z", ""))
-                    if (now - dt).total_seconds() < 86400:
-                        recency_boost = 0.5
-            except Exception:
-                pass
-            # Source reliability
-            source_boost = 0
+            # --- Adaptive scoring logic using scoring.json ---
+            # Get weights from SCORING_PARAMS
+            recency_weight = SCORING_PARAMS.get("recency_weight", 0.4)
+            volume_weight = SCORING_PARAMS.get("volume_weight", 0.2)
+            reliability_weight = SCORING_PARAMS.get("reliability_weight", 0.2)
+            macro_weight = SCORING_PARAMS.get("macro_weight", 0.1)
+            jmoney_confirm_weight = SCORING_PARAMS.get("jmoney_confirm_weight", 0.1)
+
+            # Recency score (1 if within 24h, else 0)
+            recency_score = 1 if date and dt and (now - dt).total_seconds() < 86400 else 0
+            # Volume score (1 if volume_boost, else 0)
+            volume_score = 1 if volume_boost else 0
+            # Reliability score (1 for trusted sources, -0.5 for Finviz, else 0)
             if source in ["MarketWatch", "Reuters"]:
-                source_boost = 1
+                reliability_score = 1
             elif source == "Finviz":
-                source_boost = -0.5
-            # Volume-based boost
-            if volume_boost:
-                confidence += 1
-            # Macro context boost
-            if macro_ratio > 0.6 and news_decision == "Positive Catalyst":
-                confidence += 1
-            # Recency
-            confidence += recency_boost
-            # Source
-            confidence += source_boost
-            # JMoney
-            if jmoney_confirmed:
-                confidence = min(10, confidence + 2)
-            confidence = min(10, max(0, round(confidence, 2)))
+                reliability_score = -0.5
+            else:
+                reliability_score = 0
+            # Macro score (1 if macro_ratio > 0.6 and positive, else 0)
+            macro_score_val = 1 if macro_ratio > 0.6 and news_decision == "Positive Catalyst" else 0
+            # JMoney confirm score (1 if confirmed, else 0)
+            jmoney_score = 1 if jmoney_confirmed else 0
 
+            # Calculate confidence using weights
+            confidence = (
+                recency_score * recency_weight +
+                volume_score * volume_weight +
+                reliability_score * reliability_weight +
+                macro_score_val * macro_weight +
+                jmoney_score * jmoney_confirm_weight
+            ) * 10  # Scale to 0-10
+
+            confidence = min(10, max(0, round(confidence, 2)))
 
             # Visual flag based on confidence
             if confidence >= 8:
@@ -200,6 +210,16 @@ def fetch_and_process(loop_count=None):
                 flag = "🟡"
             else:
                 flag = "🔴"
+
+            # When building each item for results and telegram output, add watch logic:
+            watch = ""
+            # Watch: positive news, not in JMoney confirmed tab, and confidence moderately high (e.g., >=5)
+            if (
+                news_decision == "Positive Catalyst"
+                and not jmoney_confirmed
+                and float(confidence) >= 5
+            ):
+                watch = "-- Consider Watching 👁️"
 
             results[ticker].append({
                 "ticker": ticker,
@@ -217,25 +237,31 @@ def fetch_and_process(loop_count=None):
                 "strategy": strategy,
                 "signal_type": signal_type,
                 "jmoney_comment": comment,
-                "jmoney_note": jmoney_note
+                "jmoney_note": jmoney_note,
+                "watch": watch  # New watch column
             })
             print(f"[STEP 11] Output: {flag} | {ticker} | {headline} | {summary} | {confidence} | {jmoney_confirmed} | ZS10: {zs10_score} | Macro: {macro_score} | Strategy: {strategy} | Signal: {signal_type}")
             # Telegram output
             telegram_msg = (
-                f"{flag} <b>{ticker}</b>\n"
+                f"{flag} <b>{ticker}</b>{' ' + watch if watch else ''}\n"
                 f"<b>Headline:</b> {headline}\n"
                 f"<b>Summary:</b> {summary}\n"
-                f"<b>Decision:</b> {news_decision} | <b>Type:</b> {catalyst_type}\n"
+                f"<b>News Decision:</b> {news_decision}\n"
+                f"<b>Catalyst Type:</b> {catalyst_type}\n"
                 f"<b>Confidence:</b> {confidence}/10\n"
                 f"<b>Source:</b> {source}\n"
                 f"<b>Date:</b> {formatted_date}\n"
-                f"<b>JMoney:</b> {jmoney_confirmed} {jmoney_note}\n"
-                f"<b>ZS10:</b> {zs10_score} | <b>Macro:</b> {macro_score} | <b>Strategy:</b> {strategy} | <b>Signal:</b> {signal_type}\n"
+                f"<b>JMoney:</b> {jmoney_confirmed}\n"
+                f"<b>JMoney Note:</b> {jmoney_note}\n"
+                f"<b>Macro:</b> {macro_score}\n"
+                f"<b>Strategy:</b> {strategy}\n"
+                f"<b>Signal:</b> {signal_type}\n"
             )
             send_telegram_message(telegram_msg)
 
     print("[STEP 12] Output: Uploading results to Google Sheet...")
     upload_to_sheet(results)
+    print("[STEP 13] Output: Results uploaded successfully.")
 
 def poll_for_commands():
     TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
@@ -259,9 +285,9 @@ def poll_for_commands():
                 text = message.get("text", "")
                 if text.strip() == "/clear":
                     from telegram_bot import send_telegram_message, handle_clear_command
-                    send_telegram_message("Clearing all messages (admin only)...")
+                    send_telegram_message("Clearing all messages")
                     handle_clear_command()
-                elif text.strip() == "/fetchnow":
+                elif text.strip() == "/fetch":
                     from telegram_bot import send_telegram_message
                     send_telegram_message("Manual fetch triggered!")
                     threading.Thread(target=fetch_and_process, kwargs={"loop_count":None}, daemon=True).start()

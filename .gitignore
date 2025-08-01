@@ -1,4 +1,5 @@
 *.json
+!config/*.json
 !J_Money Scan/input_files/*.json
 __pycache__/
 *.pyc
@@ -23,3 +24,4 @@ credentials.yaml
 *.swo
 node_modules/
 System_Architecture_Overview.docx
+ 

@@ -1,0 +1,14 @@
+{
+  "YahooFinance": "https://finance.yahoo.com/",
+  "MarketWatch": "https://www.marketwatch.com/latest-news",
+  "Reuters": "https://www.reuters.com/markets",
+  "Bloomberg": "https://www.bloomberg.com/markets",
+  "Investing": "https://www.investing.com/news/",
+  "Yahoo": "https://finance.yahoo.com/",
+  "Finviz": "https://finviz.com/news.ashx",
+  "GlobeNewswire": "https://www.globenewswire.com/",
+  "CNBC": "https://www.cnbc.com/world/?region=world",
+  "FXStreet": "https://www.fxstreet.com/news",
+  "Business Insider": "https://markets.businessinsider.com/stocks",
+  "Financial Times": "https://www.ft.com/markets"
+}
